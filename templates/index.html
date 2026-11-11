@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Sakura 3D Botanical Animation</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      background: #0d080a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace, sans-serif;
+    }
+
+    /* Fullscreen Responsive Video Viewport */
+    .video-viewport {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d080a;
+      cursor: pointer;
+    }
+
+    video#sakuraVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* Native full screen on PC & Phone: 0% crop with responsive video source */
+      display: block;
+    }
+
+    /* Minimalist Floating Transport Bar */
+    .controls-pill {
+      position: fixed;
+      bottom: max(24px, env(safe-area-inset-bottom, 24px));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: rgba(14, 15, 22, 0.75);
+      backdrop-filter: blur(24px) saturate(1.8);
+      -webkit-backdrop-filter: blur(24px) saturate(1.8);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 40px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.65), 0 0 25px rgba(248, 165, 194, 0.2);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .controls-pill.faded {
+      opacity: 0.15;
+    }
+
+    .controls-pill.faded:hover {
+      opacity: 1;
+    }
+
+    .ctrl-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 25px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .ctrl-btn:hover, .ctrl-btn:active {
+      background: rgba(248, 165, 194, 0.35);
+      border-color: #f8a5c2;
+      color: #fff;
+      transform: scale(1.05);
+    }
+
+    .time-readout {
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.68);
+      font-variant-numeric: tabular-nums;
+      padding: 0 4px;
+      letter-spacing: 0.08em;
+    }
+
+    /* Slim Interactive Progress Tracker */
+    .progress-track {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100vw;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      z-index: 12;
+      cursor: pointer;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #f8a5c2, #ff7675);
+      box-shadow: 0 0 10px rgba(248, 165, 194, 0.9);
+      transition: width 0.08s linear;
+    }
+
+    /* Small Centered Pause Notice */
+    .pause-toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: rgba(10, 11, 16, 0.82);
+      border: 1px solid rgba(248, 165, 194, 0.4);
+      color: #f8a5c2;
+      padding: 12px 28px;
+      border-radius: 40px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      z-index: 9;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .pause-toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fullscreen Responsive Video Element -->
+  <div class="video-viewport" id="viewport">
+    <video id="sakuraVideo" autoplay loop muted playsinline preload="auto"></video>
+  </div>
+
+  <!-- Subtle Center Pause Notification -->
+  <div class="pause-toast" id="pauseToast">Paused</div>
+
+  <!-- Minimal Transport Controls: Pause and 1.0x -->
+  <div class="controls-pill" id="controlsPill">
+    <button class="ctrl-btn" id="pauseBtn" title="Pause or Resume">Pause</button>
+    <button class="ctrl-btn" id="speedBtn" title="Playback Speed">1.0x</button>
+    <span class="time-readout" id="timeLabel">00:00 / 00:18</span>
+  </div>
+
+  <!-- Interactive Progress Bar Line at Bottom -->
+  <div class="progress-track" id="progressTrack">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <script>
+    const video = document.getElementById('sakuraVideo');
+    const viewport = document.getElementById('viewport');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const speedBtn = document.getElementById('speedBtn');
+    const timeLabel = document.getElementById('timeLabel');
+    const progressBar = document.getElementById('progressBar');
+    const progressTrack = document.getElementById('progressTrack');
+    const controlsPill = document.getElementById('controlsPill');
+    const pauseToast = document.getElementById('pauseToast');
+
+    // Multi-Aspect Responsive Source Resolution
+    let currentAspect = '';
+
+    function getOptimalSource() {
+      const isLandscape = window.innerWidth >= window.innerHeight;
+      return isLandscape ? '/video/landscape' : '/video/portrait';
+    }
+
+    function applyResponsiveVideoSource() {
+      const neededAspect = (window.innerWidth >= window.innerHeight) ? 'landscape' : 'portrait';
+      if (currentAspect !== neededAspect) {
+        currentAspect = neededAspect;
+        const prevTime = video.currentTime || 0;
+        const wasPaused = video.paused;
+        const src = (neededAspect === 'landscape') ? '/video/landscape' : '/video/portrait';
+        video.src = src;
+        video.currentTime = prevTime;
+        if (!wasPaused) {
+          video.play().catch(() => {});
+        }
+      }
+    }
+
+    // Initialize with optimal source for current screen
+    applyResponsiveVideoSource();
+
+    // Dynamically re-evaluate on window resize or phone rotation
+    window.addEventListener('resize', applyResponsiveVideoSource);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(applyResponsiveVideoSource, 150);
+    });
+
+    // Speed Steps
+    const speedSteps = [0.5, 1.0, 1.5, 2.0];
+    let speedIdx = 1;
+
+    // Toggle Pause/Resume
+    function togglePause() {
+      if (video.paused) {
+        video.play();
+        pauseBtn.textContent = 'Pause';
+        pauseToast.classList.remove('show');
+      } else {
+        video.pause();
+        pauseBtn.textContent = 'Resume';
+        pauseToast.classList.add('show');
+      }
+    }
+
+    pauseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePause();
+      triggerControlsActive();
+    });
+
+    viewport.addEventListener('click', () => {
+      togglePause();
+      triggerControlsActive();
+    });
+
+    speedBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      speedIdx = (speedIdx + 1) % speedSteps.length;
+      const spd = speedSteps[speedIdx];
+      video.playbackRate = spd;
+      speedBtn.textContent = spd.toFixed(1) + 'x';
+      triggerControlsActive();
+    });
+
+    // Time Readout & Progress Line
+    function formatTime(s) {
+      const sec = Math.floor(s || 0);
+      const m = Math.floor(sec / 60);
+      const rem = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+    }
+
+    video.addEventListener('timeupdate', () => {
+      const cur = video.currentTime;
+      const dur = video.duration || 18.0;
+      timeLabel.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+      progressBar.style.width = ((cur / dur) * 100) + '%';
+    });
+
+    progressTrack.addEventListener('click', (e) => {
+      const rect = progressTrack.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      video.currentTime = pct * (video.duration || 18.0);
+    });
+
+    // Auto-Fade Controls on Inactivity (3.5s)
+    let idleTimer = null;
+    function triggerControlsActive() {
+      controlsPill.classList.remove('faded');
+      clearTimeout(idleTimer);
+      if (!video.paused) {
+        idleTimer = setTimeout(() => {
+          controlsPill.classList.add('faded');
+        }, 3500);
+      }
+    }
+
+    window.addEventListener('mousemove', triggerControlsActive);
+    window.addEventListener('touchstart', triggerControlsActive);
+    triggerControlsActive();
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePause();
+      } else if (e.key === '1') {
+        video.playbackRate = 1.0;
+        speedIdx = 1;
+        speedBtn.textContent = '1.0x';
+      } else if (e.key === '2') {
+        video.playbackRate = 2.0;
+        speedIdx = 3;
+        speedBtn.textContent = '2.0x';
+      }
+      triggerControlsActive();
+    });
+  </script>
+</body>
+</html>

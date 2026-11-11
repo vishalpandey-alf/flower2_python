@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# Bundled large binary (exceeds GitHub 100 MB limit; install via `pip install imageio-ffmpeg`)
+ffmpeg.exe
+
+# Generated temporary previews & test frames
+preview_*.png
+test_*.png
