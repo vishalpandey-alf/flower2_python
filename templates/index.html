@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Sakura 3D Botanical Animation</title>
+  <link rel="icon" href="data:,">
+  <title>Blue Tulip 3D Botanical Animation</title>
   <style>
     * {
       box-sizing: border-box;
@@ -20,15 +21,15 @@
       overflow: hidden;
       margin: 0;
       padding: 0;
-      background: #0d080a;
+      background: #020614;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace, sans-serif;
+      touch-action: none;
     }
 
-    /* Fullscreen Responsive Video Viewport */
+    /* Fullscreen Viewport Container */
     .video-viewport {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100vw;
       height: 100vh;
       height: 100dvh;
@@ -36,18 +37,48 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #0d080a;
-      cursor: pointer;
+      background: #020614;
+      cursor: grab;
+      touch-action: none;
+      overflow: hidden;
     }
 
-    video#sakuraVideo {
+    .video-viewport:active {
+      cursor: grabbing;
+    }
+
+    /* Base Video (fallback visible until WebGL compositor renders Frame 1) */
+    video#tulipVideo {
       width: 100%;
       height: 100%;
-      object-fit: cover; /* Native full screen on PC & Phone: 0% crop with responsive video source */
+      object-fit: cover;
       display: block;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
     }
 
-    /* Minimalist Floating Transport Bar */
+    body.webgl-ready video#tulipVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 2px;
+      height: 2px;
+      opacity: 0.001;
+      pointer-events: none;
+    }
+
+    /* Three.js HDR WebGL Canvas */
+    canvas#tulipWebgl {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Minimalist Floating Transport Bar (>= 44px touch targets) */
     .controls-pill {
       position: fixed;
       bottom: max(24px, env(safe-area-inset-bottom, 24px));
@@ -56,19 +87,19 @@
       z-index: 10;
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 8px 16px;
-      background: rgba(14, 15, 22, 0.75);
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(8, 14, 28, 0.78);
       backdrop-filter: blur(24px) saturate(1.8);
       -webkit-backdrop-filter: blur(24px) saturate(1.8);
-      border: 1px solid rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(143, 195, 255, 0.22);
       border-radius: 40px;
-      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.65), 0 0 25px rgba(248, 165, 194, 0.2);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.65), 0 0 25px rgba(78, 168, 255, 0.28);
       transition: opacity 0.4s ease, transform 0.4s ease;
     }
 
     .controls-pill.faded {
-      opacity: 0.15;
+      opacity: 0.22;
     }
 
     .controls-pill.faded:hover {
@@ -76,35 +107,44 @@
     }
 
     .ctrl-btn {
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.18);
+      min-height: 44px;
+      min-width: 44px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(143, 195, 255, 0.22);
       color: #fff;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      padding: 8px 18px;
+      padding: 0 16px;
       border-radius: 25px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       transition: all 0.2s ease;
       letter-spacing: 0.04em;
       white-space: nowrap;
     }
 
     .ctrl-btn:hover, .ctrl-btn:active {
-      background: rgba(248, 165, 194, 0.35);
-      border-color: #f8a5c2;
+      background: rgba(78, 168, 255, 0.3);
+      border-color: #8fc3ff;
       color: #fff;
-      transform: scale(1.05);
+    }
+
+    .ctrl-btn.active {
+      background: linear-gradient(135deg, #4ea8ff, #1f4fbf);
+      border-color: #8fc3ff;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(78, 168, 255, 0.6);
     }
 
     .time-readout {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: rgba(255, 255, 255, 0.68);
       font-variant-numeric: tabular-nums;
-      padding: 0 4px;
-      letter-spacing: 0.08em;
+      padding: 0 6px;
+      letter-spacing: 0.06em;
     }
 
     /* Slim Interactive Progress Tracker */
@@ -113,7 +153,7 @@
       bottom: 0;
       left: 0;
       width: 100vw;
-      height: 4px;
+      height: 5px;
       background: rgba(255, 255, 255, 0.12);
       z-index: 12;
       cursor: pointer;
@@ -122,9 +162,61 @@
     .progress-bar {
       width: 0%;
       height: 100%;
-      background: linear-gradient(90deg, #f8a5c2, #ff7675);
-      box-shadow: 0 0 10px rgba(248, 165, 194, 0.9);
-      transition: width 0.08s linear;
+      background: linear-gradient(90deg, #1f4fbf, #3b7be8, #8fc3ff);
+      box-shadow: 0 0 12px rgba(78, 168, 255, 0.9);
+      transition: width 0.05s linear;
+    }
+
+    /* Gesture Feedback / Living Aura HUD */
+    .bloom-hud {
+      position: fixed;
+      top: max(20px, env(safe-area-inset-top, 20px));
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      z-index: 11;
+      background: rgba(8, 14, 28, 0.82);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(78, 168, 255, 0.38);
+      color: #8fc3ff;
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+    }
+
+    .bloom-hud.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .bloom-hud.living {
+      border-color: rgba(143, 195, 255, 0.68);
+      color: #badeff;
+      box-shadow: 0 0 24px rgba(78, 168, 255, 0.35);
+    }
+
+    .bloom-mini-bar {
+      width: 68px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bloom-mini-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1f4fbf, #8fc3ff);
+      transition: width 0.04s linear;
     }
 
     /* Small Centered Pause Notice */
@@ -133,12 +225,12 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%) scale(0.9);
-      background: rgba(10, 11, 16, 0.82);
-      border: 1px solid rgba(248, 165, 194, 0.4);
-      color: #f8a5c2;
+      background: rgba(8, 14, 28, 0.85);
+      border: 1px solid rgba(78, 168, 255, 0.4);
+      color: #8fc3ff;
       padding: 12px 28px;
       border-radius: 40px;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 600;
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -153,22 +245,131 @@
       opacity: 1;
       transform: translate(-50%, -50%) scale(1);
     }
+
+    /* Mini Hand-Tracking PiP Preview */
+    .hand-cam-pip {
+      position: fixed;
+      top: max(18px, env(safe-area-inset-top, 18px));
+      right: 18px;
+      width: 148px;
+      height: 112px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(8, 14, 28, 0.88);
+      border: 1px solid rgba(78, 168, 255, 0.45);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 15;
+      display: none;
+    }
+
+    .hand-cam-pip.active {
+      display: block;
+    }
+
+    .hand-cam-pip video {
+      display: none;
+    }
+
+    .hand-cam-pip canvas {
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+      display: block;
+    }
+
+    .hand-cam-label {
+      position: absolute;
+      bottom: 4px;
+      left: 6px;
+      font-size: 0.62rem;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(0, 0, 0, 0.65);
+      padding: 2px 6px;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Gesture Hint Badge */
+    .gesture-hint {
+      position: fixed;
+      bottom: max(78px, calc(env(safe-area-inset-bottom, 24px) + 56px));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9;
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.6);
+      letter-spacing: 0.06em;
+      pointer-events: none;
+      white-space: nowrap;
+      transition: opacity 0.5s ease;
+    }
+
+    .gesture-hint.hidden {
+      opacity: 0;
+    }
+
+    @media (max-width: 520px) {
+      .controls-pill {
+        gap: 6px;
+        padding: 5px 10px;
+      }
+      .ctrl-btn {
+        font-size: 0.76rem;
+        padding: 0 12px;
+      }
+      .time-readout {
+        display: none;
+      }
+      .hand-cam-pip {
+        width: 112px;
+        height: 84px;
+      }
+    }
   </style>
+
+  <!-- Premium 3D & Motion Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 <body>
 
-  <!-- Fullscreen Responsive Video Element -->
+  <!-- Responsive Video Source + WebGL HDR Viewport -->
   <div class="video-viewport" id="viewport">
-    <video id="sakuraVideo" autoplay loop muted playsinline preload="auto"></video>
+    <video id="tulipVideo" autoplay loop muted playsinline preload="auto"></video>
+    <canvas id="tulipWebgl"></canvas>
+  </div>
+
+  <!-- Live Bloom Gesture Feedback HUD -->
+  <div class="bloom-hud" id="bloomHud">
+    <span id="bloomText">BLOOM: 0%</span>
+    <div class="bloom-mini-bar"><div class="bloom-mini-fill" id="bloomMiniFill"></div></div>
+  </div>
+
+  <!-- Mini Hand-Tracking Camera PiP -->
+  <div class="hand-cam-pip" id="handCamPip">
+    <video id="webcamVideo" playsinline muted></video>
+    <canvas id="handCanvas" width="160" height="120"></canvas>
+    <div class="hand-cam-label" id="handStatus">Detecting...</div>
   </div>
 
   <!-- Subtle Center Pause Notification -->
   <div class="pause-toast" id="pauseToast">Paused</div>
 
-  <!-- Minimal Transport Controls: Pause and 1.0x -->
+  <!-- Subtle Discoverable Gesture Hint -->
+  <div class="gesture-hint" id="gestureHint">Pinch, Drag, or Hand Cam to Bloom • Move Hand to Steer 3D Sparkle Spiral</div>
+
+  <!-- Minimal Transport Controls: Pause, 1.0x, Hand Cam -->
   <div class="controls-pill" id="controlsPill">
     <button class="ctrl-btn" id="pauseBtn" title="Pause or Resume">Pause</button>
     <button class="ctrl-btn" id="speedBtn" title="Playback Speed">1.0x</button>
+    <button class="ctrl-btn" id="handCamBtn" title="Control Bloom with Camera Hand Gestures">Hand Cam</button>
     <span class="time-readout" id="timeLabel">00:00 / 00:18</span>
   </div>
 
@@ -177,55 +378,740 @@
     <div class="progress-bar" id="progressBar"></div>
   </div>
 
-  <script>
-    const video = document.getElementById('sakuraVideo');
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    const video = document.getElementById('tulipVideo');
+    const webglCanvas = document.getElementById('tulipWebgl');
     const viewport = document.getElementById('viewport');
     const pauseBtn = document.getElementById('pauseBtn');
     const speedBtn = document.getElementById('speedBtn');
+    const handCamBtn = document.getElementById('handCamBtn');
     const timeLabel = document.getElementById('timeLabel');
     const progressBar = document.getElementById('progressBar');
     const progressTrack = document.getElementById('progressTrack');
     const controlsPill = document.getElementById('controlsPill');
     const pauseToast = document.getElementById('pauseToast');
+    const bloomHud = document.getElementById('bloomHud');
+    const bloomText = document.getElementById('bloomText');
+    const bloomMiniFill = document.getElementById('bloomMiniFill');
+    const gestureHint = document.getElementById('gestureHint');
 
-    // Multi-Aspect Responsive Source Resolution
+    // Hand Tracking DOM
+    const handCamPip = document.getElementById('handCamPip');
+    const webcamVideo = document.getElementById('webcamVideo');
+    const handCanvas = document.getElementById('handCanvas');
+    const handCtx = handCanvas.getContext('2d');
+    const handStatus = document.getElementById('handStatus');
+
+    // Bloom Range Window (Buds Closed ~3.2s -> Full Radiant Bloom ~15.0s)
+    const BLOOM_START_SEC = 3.2;
+    const BLOOM_END_SEC = 15.0;
+    const BLOOM_FULL_THRESHOLD = 0.78;
+    const DURATION = 18.0;
+
+    // ------------------------------------------------------------------------
+    // 1. MULTI-ASPECT RESPONSIVE VIDEO SOURCE
+    // ------------------------------------------------------------------------
     let currentAspect = '';
-
-    function getOptimalSource() {
-      const isLandscape = window.innerWidth >= window.innerHeight;
-      return isLandscape ? '/video/landscape' : '/video/portrait';
-    }
-
     function applyResponsiveVideoSource() {
       const neededAspect = (window.innerWidth >= window.innerHeight) ? 'landscape' : 'portrait';
       if (currentAspect !== neededAspect) {
         currentAspect = neededAspect;
         const prevTime = video.currentTime || 0;
         const wasPaused = video.paused;
-        const src = (neededAspect === 'landscape') ? '/video/landscape' : '/video/portrait';
-        video.src = src;
+        video.src = (neededAspect === 'landscape') ? '/video/landscape' : '/video/portrait';
         video.currentTime = prevTime;
-        if (!wasPaused) {
+        if (!wasPaused && !handTrackingActive && bloomMode !== 'BLOOMED_ALIVE') {
           video.play().catch(() => {});
         }
       }
     }
-
-    // Initialize with optimal source for current screen
     applyResponsiveVideoSource();
 
-    // Dynamically re-evaluate on window resize or phone rotation
-    window.addEventListener('resize', applyResponsiveVideoSource);
-    window.addEventListener('orientationchange', () => {
-      setTimeout(applyResponsiveVideoSource, 150);
+    // ------------------------------------------------------------------------
+    // 2. SIGNAL FILTERING (One Euro Filter + Spring Physics) FOR ULTRA-SMOOTH GESTURE
+    // ------------------------------------------------------------------------
+    class OneEuroFilter {
+      constructor(minCutoff = 1.15, beta = 0.085, dCutoff = 1.0) {
+        this.minCutoff = minCutoff;
+        this.beta = beta;
+        this.dCutoff = dCutoff;
+        this.xPrev = null;
+        this.dxPrev = 0;
+        this.tPrev = null;
+      }
+      alpha(cutoff, dt) {
+        const tau = 1.0 / (2.0 * Math.PI * cutoff);
+        return 1.0 / (1.0 + tau / Math.max(dt, 1e-4));
+      }
+      filter(x, t) {
+        if (this.xPrev === null || this.tPrev === null) {
+          this.xPrev = x;
+          this.dxPrev = 0;
+          this.tPrev = t;
+          return x;
+        }
+        const dt = Math.max(0.004, Math.min(0.15, t - this.tPrev));
+        this.tPrev = t;
+
+        const dx = (x - this.xPrev) / dt;
+        const aD = this.alpha(this.dCutoff, dt);
+        const dxHat = this.dxPrev + aD * (dx - this.dxPrev);
+        this.dxPrev = dxHat;
+
+        const cutoff = this.minCutoff + this.beta * Math.abs(dxHat);
+        const aX = this.alpha(cutoff, dt);
+        const xHat = this.xPrev + aX * (x - this.xPrev);
+        this.xPrev = xHat;
+        return xHat;
+      }
+      reset(val = null) {
+        this.xPrev = val;
+        this.dxPrev = 0;
+        this.tPrev = null;
+      }
+    }
+
+    function stepSpring(state, target, dt, stiffness = 115, damping = 19) {
+      const clampedDt = Math.min(dt, 0.04);
+      const force = (target - state.val) * stiffness;
+      state.vel = (state.vel + force * clampedDt) * Math.exp(-damping * clampedDt);
+      state.val += state.vel * clampedDt;
+      return state.val;
+    }
+
+    // Gesture & Post-Bloom State
+    let bloomMode = 'LIVE_LOOP'; // 'LIVE_LOOP' | 'GESTURE_SCRUB' | 'BLOOMED_ALIVE'
+    const fxState = {
+      aliveAmount: 0.0,     // 0 -> normal, 1 -> petals move, glow spills out, background sparkle gradients active
+      spiralBurst: 0.0,     // flares smoothly during gesture motion
+      bloomNorm: 0.35
+    };
+
+    const bloomSpring = { val: 0.35, vel: 0 };
+    const handXSpring = { val: 0, vel: 0 };
+    const handYSpring = { val: 0, vel: 0 };
+    const handRollSpring = { val: 0, vel: 0 };
+
+    let targetBloomNorm = 0.35;
+    let targetHandX = 0;
+    let targetHandY = 0;
+    let targetHandRoll = 0;
+    let handDetectedLast = false;
+    let handEverDetected = false;
+    let bloomSettleTimer = 0;
+    let gestureLastMoveTime = 0;
+    let aliveAnchor = { bloom: 0, x: 0, y: 0 };
+    let lastAnchorSample = { bloom: 0, x: 0, y: 0 };
+
+    function setBloomAliveMode(active) {
+      if (active && bloomMode !== 'BLOOMED_ALIVE') {
+        bloomMode = 'BLOOMED_ALIVE';
+        aliveAnchor = { bloom: bloomSpring.val, x: handXSpring.val, y: handYSpring.val };
+        bloomHud.classList.add('living');
+        showBloomHud(100, 'LIVING BLOOM • SPARKLE AURA', true);
+        if (window.gsap) {
+          gsap.to(fxState, { aliveAmount: 1.0, duration: 1.15, ease: 'power2.out', overwrite: 'auto' });
+        } else {
+          fxState.aliveAmount = 1.0;
+        }
+      } else if (!active && bloomMode === 'BLOOMED_ALIVE') {
+        bloomMode = handTrackingActive ? 'GESTURE_SCRUB' : 'LIVE_LOOP';
+        bloomHud.classList.remove('living');
+        if (window.gsap) {
+          gsap.to(fxState, { aliveAmount: 0.0, duration: 0.45, ease: 'power2.inOut', overwrite: 'auto' });
+        } else {
+          fxState.aliveAmount = 0.0;
+        }
+      }
+    }
+
+    function scheduleSeek(targetSec) {
+      if (!video.seeking && Math.abs(video.currentTime - targetSec) > 0.012) {
+        video.currentTime = targetSec;
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // 3. THREE.JS HDR BLOOM PIPELINE + 3D SPARKLE SPIRAL + SPARKLE GRADIENTS
+    // ------------------------------------------------------------------------
+    let composer = null;
+    let bloomPass = null;
+    let bgUniforms = null;
+    let spiralUniforms = null;
+    let ribbonUniforms = null;
+    let spiralGroup = null;
+    let ribbonMeshes = [];
+    let floatingPetals = [];
+    let perspCam = null;
+    let renderer = null;
+    let webglActive = false;
+
+    function initPremiumWebGL() {
+      try {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+
+        renderer = new THREE.WebGLRenderer({
+          canvas: webglCanvas,
+          antialias: false,
+          powerPreference: 'high-performance',
+          alpha: false
+        });
+        renderer.setPixelRatio(dpr);
+        renderer.setSize(w, h, false);
+        renderer.toneMapping = THREE.NoToneMapping;
+
+        // Pass 1 Scene: Fullscreen Video + Breeze Petal Motion + Floral Radiance + Sparkle Gradients
+        const bgScene = new THREE.Scene();
+        const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        const videoTex = new THREE.VideoTexture(video);
+        videoTex.minFilter = THREE.LinearFilter;
+        videoTex.magFilter = THREE.LinearFilter;
+        videoTex.colorSpace = THREE.NoColorSpace;
+        videoTex.generateMipmaps = false;
+
+        bgUniforms = {
+          uVideo: { value: videoTex },
+          uViewSize: { value: new THREE.Vector2(w, h) },
+          uVideoSize: { value: new THREE.Vector2(1920, 1080) },
+          uTime: { value: 0 },
+          uAliveAmount: { value: 0 },
+          uBloomNorm: { value: 0.35 },
+          uGestureEnergy: { value: 0 },
+          uHandOffset: { value: new THREE.Vector2(0, 0) }
+        };
+
+        const bgMat = new THREE.ShaderMaterial({
+          uniforms: bgUniforms,
+          depthWrite: false,
+          depthTest: false,
+          vertexShader: /* glsl */ `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = vec4(position.xy, 0.0, 1.0);
+            }
+          `,
+          fragmentShader: /* glsl */ `
+            precision highp float;
+            varying vec2 vUv;
+
+            uniform sampler2D uVideo;
+            uniform vec2 uViewSize;
+            uniform vec2 uVideoSize;
+            uniform float uTime;
+            uniform float uAliveAmount;
+            uniform float uBloomNorm;
+            uniform float uGestureEnergy;
+            uniform vec2 uHandOffset;
+
+            vec2 getCoverUv(vec2 uv, vec2 viewSize, vec2 texSize) {
+              float viewAspect = viewSize.x / max(viewSize.y, 1.0);
+              float texAspect = texSize.x / max(texSize.y, 1.0);
+              vec2 scale = vec2(1.0);
+              if (viewAspect > texAspect) {
+                scale.y = texAspect / viewAspect;
+              } else {
+                scale.x = viewAspect / texAspect;
+              }
+              return (uv - 0.5) * scale + 0.5;
+            }
+
+            float hash21(vec2 p) {
+              p = fract(p * vec2(234.34, 435.345));
+              p += dot(p, p + 34.23);
+              return fract(p.x * p.y);
+            }
+
+            float organicSparkle(vec2 uv, vec2 gridScale, float speed, float time, out float isBokeh) {
+              vec2 gv = uv * gridScale;
+              vec2 id = floor(gv);
+              vec2 f = fract(gv) - 0.5;
+              float rnd = hash21(id);
+              isBokeh = 0.0;
+              if (rnd < 0.74) return 0.0;
+
+              vec2 jitter = vec2(hash21(id + 13.7) - 0.5, hash21(id + 29.1) - 0.5) * 0.34;
+              vec2 d = f - jitter;
+              float ang = hash21(id + 71.3) * 3.14159;
+              float cs = cos(ang), sn = sin(ang);
+              vec2 rd = vec2(d.x * cs - d.y * sn, d.x * sn + d.y * cs);
+
+              float twinkle = pow(0.5 + 0.5 * sin(time * speed + rnd * 47.0), 5.0);
+              float dist = length(d);
+
+              // Mix soft cinematic bokeh discs & crisp rotated diamond glints
+              if (rnd > 0.90) {
+                isBokeh = 1.0;
+                float disc = smoothstep(0.26, 0.08, dist);
+                float rim = smoothstep(0.26, 0.20, dist) * smoothstep(0.11, 0.20, dist);
+                return (disc * 0.42 + rim * 0.35) * (0.45 + 0.55 * twinkle);
+              }
+              float core = exp(-dist * 18.0);
+              float crossRays = smoothstep(0.018, 0.0, abs(rd.x)) * smoothstep(0.20, 0.0, abs(rd.y))
+                              + smoothstep(0.018, 0.0, abs(rd.y)) * smoothstep(0.20, 0.0, abs(rd.x));
+              return (core * 1.1 + crossRays * 0.55) * twinkle;
+            }
+
+            vec3 toLinear(vec3 c) {
+              return pow(max(c, vec3(0.0)), vec3(2.2));
+            }
+
+            void main() {
+              vec2 baseUv = getCoverUv(vUv, uViewSize, uVideoSize);
+              vec3 rawCol = toLinear(texture2D(uVideo, baseUv).rgb);
+              float rawLum = dot(rawCol, vec3(0.2126, 0.7152, 0.0722));
+
+              // Detect blue sapphire flower tepals in Linear RGB (exclude lower stem base & dark backdrop)
+              float blueAffinity = smoothstep(0.04, 0.30, rawCol.b) * smoothstep(-0.02, 0.16, rawCol.b - rawCol.r * 0.70);
+              float petalMask = smoothstep(0.04, 0.28, rawLum) * blueAffinity * smoothstep(0.08, 0.30, baseUv.y);
+
+              // Subtle organic wind sway on petals once bloomed via hand gesture
+              vec3 col = rawCol;
+              if (uAliveAmount > 0.005) {
+                float t = uTime;
+                float waveX = sin(baseUv.y * 14.0 + t * 1.65 + baseUv.x * 5.0) * cos(baseUv.x * 9.5 - t * 1.15)
+                            + 0.42 * sin(baseUv.y * 26.0 - t * 2.35 + baseUv.x * 17.0);
+                float waveY = cos(baseUv.x * 12.0 + t * 1.35) * sin(baseUv.y * 11.0 + t * 0.95);
+                float swayAmt = uAliveAmount * petalMask * 0.0046;
+                vec2 windUv = clamp(baseUv + vec2(waveX, waveY) * swayAmt, 0.001, 0.999);
+                col = toLinear(texture2D(uVideo, windUv).rgb);
+              }
+
+              float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+              float activePetal = smoothstep(0.06, 0.36, lum) * smoothstep(0.04, 0.38, col.b) * smoothstep(0.08, 0.30, baseUv.y);
+              float bgMask = 1.0 - smoothstep(0.022, 0.095, lum);
+
+              // Subtle studio subsurface atmospheric halo behind blossoms even during normal bloom
+              vec2 centered = (vUv - 0.5) * vec2(uViewSize.x / max(uViewSize.y, 1.0), 1.0);
+              centered -= uHandOffset * 0.06;
+              float rad = length(centered);
+              col += vec3(0.012, 0.028, 0.075) * exp(-rad * rad * 3.6) * bgMask * smoothstep(0.15, 0.9, uBloomNorm);
+
+              // Animated Sparkle Gradients Background in BLOOMED_ALIVE mode
+              if (uAliveAmount > 0.005) {
+                float t = uTime;
+                float angle = atan(centered.y, centered.x);
+
+                // Smooth silk aurora color gradients (Linear HDR space + micro-dither to prevent banding)
+                float swirlA = 0.5 + 0.5 * sin(rad * 3.6 - t * 0.68 + sin(angle * 2.0 + t * 0.42) * 1.35);
+                float swirlB = 0.5 + 0.5 * cos(centered.x * 2.2 + centered.y * 1.9 - t * 0.52);
+                vec3 gradDeep = vec3(0.005, 0.011, 0.028);
+                vec3 gradTeal = vec3(0.018, 0.085, 0.14);
+                vec3 gradSapphire = vec3(0.042, 0.11, 0.28);
+                vec3 gradViolet = vec3(0.072, 0.035, 0.16);
+                vec3 gradGold = vec3(0.24, 0.18, 0.045);
+
+                vec3 aurora = mix(gradDeep, gradSapphire, smoothstep(0.2, 0.85, swirlA));
+                aurora = mix(aurora, gradViolet, smoothstep(0.25, 0.88, swirlB) * 0.58);
+                aurora = mix(aurora, gradTeal, smoothstep(0.35, 0.90, swirlA * swirlB) * 0.45);
+                aurora += gradGold * pow(swirlA * swirlB, 2.2) * exp(-rad * 0.85) * 0.75;
+                aurora += (hash21(gl_FragCoord.xy + fract(t) * 100.0) - 0.5) * 0.003;
+
+                // Two drifting multi-scale background bokeh + sparkle fields
+                vec2 driftUv1 = vUv * vec2(uViewSize.x / max(uViewSize.y, 1.0), 1.0) + vec2(t * 0.010, -t * 0.022);
+                vec2 driftUv2 = vUv * vec2(uViewSize.x / max(uViewSize.y, 1.0), 1.0) - vec2(t * 0.007, t * 0.016);
+                float isBokeh1 = 0.0, isBokeh2 = 0.0;
+                float sp1 = organicSparkle(driftUv1, vec2(12.0, 12.0), 2.1, t, isBokeh1);
+                float sp2 = organicSparkle(driftUv2, vec2(22.0, 22.0), 3.0, t + 5.1, isBokeh2);
+                vec3 colSp1 = mix(vec3(0.72, 1.05, 1.45), vec3(0.42, 0.65, 1.15), isBokeh1);
+                vec3 colSp2 = mix(vec3(1.35, 1.15, 0.65), vec3(0.85, 0.70, 0.38), isBokeh2);
+                vec3 bgSparkles = colSp1 * sp1 + colSp2 * sp2 * 0.82;
+
+                col = mix(col, max(col * 0.78, aurora) + bgSparkles * 0.52, uAliveAmount * bgMask * 0.86);
+
+                // Radiant sapphire radiance streaming outward from bloomed tepal edges
+                float radStep = 0.013 * (0.85 + 0.22 * sin(t * 1.9));
+                vec3 auraSample = (
+                  toLinear(texture2D(uVideo, clamp(baseUv + vec2(radStep, radStep * 0.7), 0.001, 0.999)).rgb) +
+                  toLinear(texture2D(uVideo, clamp(baseUv + vec2(-radStep, radStep * 0.7), 0.001, 0.999)).rgb) +
+                  toLinear(texture2D(uVideo, clamp(baseUv + vec2(radStep * 0.7, -radStep), 0.001, 0.999)).rgb) +
+                  toLinear(texture2D(uVideo, clamp(baseUv + vec2(-radStep * 0.7, -radStep), 0.001, 0.999)).rgb)
+                ) * 0.25;
+
+                float auraStrength = smoothstep(0.06, 0.44, dot(auraSample, vec3(0.2, 0.35, 0.45)));
+                float outerHalo = max(0.0, auraStrength - lum * 0.74);
+                float pulse = 0.78 + 0.22 * sin(t * 2.1);
+
+                vec3 petalRimBoost = vec3(0.16, 0.38, 0.92) * activePetal * uAliveAmount * pulse * 0.24;
+                col += petalRimBoost * (1.0 - min(col, vec3(0.88)));
+                col += vec3(0.24, 0.52, 1.10) * outerHalo * uAliveAmount * pulse * 0.52;
+              }
+
+              // Subtle gesture bloom shimmer when actively sweeping open
+              col += vec3(0.18, 0.42, 0.88) * activePetal * uGestureEnergy * 0.30 * (1.0 - min(col, vec3(0.88)));
+
+              gl_FragColor = vec4(col, 1.0);
+            }
+          `
+        });
+        bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat));
+
+        // Pass 2 Scene: True 3D Sparkle Spiral Glow + 3D Luminous Ribbons + 3D Floating Petals
+        const fxScene = new THREE.Scene();
+        perspCam = new THREE.PerspectiveCamera(46, w / h, 0.1, 60);
+        perspCam.position.set(0, 0, 7.2);
+
+        spiralGroup = new THREE.Group();
+        fxScene.add(spiralGroup);
+
+        // Build Coherent Calligraphic 3D Double-Helix Stardust + Bokeh + Hero Glints (860 particles)
+        const COUNT = 860;
+        const spiralPos = new Float32Array(COUNT * 3);
+        const spiralMeta = new Float32Array(COUNT * 4); // [tNorm (0..1), particleType (0=stardust,1=bokeh,2=glint), phase, sizeSeed]
+        for (let i = 0; i < COUNT; i++) {
+          const tNorm = i / COUNT;
+          const arm = i % 2;
+          const rPick = Math.random();
+          const pType = rPick > 0.94 ? 2 : (rPick > 0.74 ? 1 : 0);
+
+          // Tightly braided helical stream so particles read as sculpted ribbons of starlight
+          const scatter = pType === 1 ? 0.26 : 0.14;
+          const angle = tNorm * Math.PI * 5.6 + arm * Math.PI + (Math.random() - 0.5) * 0.22;
+          const baseRadius = (0.38 + Math.sin(tNorm * Math.PI) * 1.46) + (Math.random() - 0.5) * scatter;
+          const yPos = (tNorm - 0.48) * 4.25 + (Math.random() - 0.5) * scatter * 0.85;
+
+          spiralPos[i * 3] = Math.cos(angle) * baseRadius;
+          spiralPos[i * 3 + 1] = yPos;
+          spiralPos[i * 3 + 2] = Math.sin(angle) * baseRadius;
+
+          spiralMeta[i * 4] = tNorm;
+          spiralMeta[i * 4 + 1] = pType;
+          spiralMeta[i * 4 + 2] = Math.random() * Math.PI * 2.0;
+          spiralMeta[i * 4 + 3] = pType === 1
+            ? (1.1 + Math.random() * 0.85)
+            : (pType === 2 ? (1.25 + Math.random() * 0.75) : (0.28 + Math.pow(Math.random(), 2.2) * 0.65));
+        }
+
+        const spiralGeo = new THREE.BufferGeometry();
+        spiralGeo.setAttribute('position', new THREE.BufferAttribute(spiralPos, 3));
+        spiralGeo.setAttribute('aMeta', new THREE.BufferAttribute(spiralMeta, 4));
+
+        spiralUniforms = {
+          uTime: { value: 0 },
+          uBloomNorm: { value: 0.35 },
+          uGestureEnergy: { value: 0 },
+          uAliveAmount: { value: 0 },
+          uPixelRatio: { value: dpr },
+          uSpinPhase: { value: 0 }
+        };
+
+        const spiralMat = new THREE.ShaderMaterial({
+          uniforms: spiralUniforms,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          vertexShader: /* glsl */ `
+            attribute vec4 aMeta;
+            uniform float uTime;
+            uniform float uBloomNorm;
+            uniform float uGestureEnergy;
+            uniform float uAliveAmount;
+            uniform float uPixelRatio;
+            uniform float uSpinPhase;
+
+            varying vec4 vMeta;
+            varying float vAlpha;
+
+            void main() {
+              vMeta = aMeta;
+              float tNorm = aMeta.x;
+              float pType = aMeta.y;
+              float phase = aMeta.z;
+              float sizeSeed = aMeta.w;
+
+              float radialScale = mix(0.34, 1.24, uBloomNorm) + uGestureEnergy * 0.22 + sin(uTime * 1.2 + tNorm * 5.0) * 0.04 * uAliveAmount;
+              float twistAngle = uSpinPhase + tNorm * (1.8 + uBloomNorm * 1.4) + uTime * 0.18;
+              float cs = cos(twistAngle);
+              float sn = sin(twistAngle);
+
+              vec3 p = position;
+              p.xz *= radialScale;
+              p.y = (p.y + 0.1) * mix(0.45, 1.05, uBloomNorm) - 0.05 + sin(uTime * 0.9 + phase) * 0.05;
+
+              vec3 rotated = vec3(
+                p.x * cs - p.z * sn,
+                p.y + sin(uTime * 1.3 + tNorm * 6.0 + phase) * 0.035,
+                p.x * sn + p.z * cs
+              );
+
+              float headVis = smoothstep(tNorm - 0.16, tNorm + 0.02, min(1.05, uBloomNorm * 1.12 + 0.08));
+              float energyBoost = 0.32 + 0.42 * max(uBloomNorm * 0.6, uAliveAmount) + uGestureEnergy * 0.72;
+              vAlpha = headVis * energyBoost * (pType > 0.5 && pType < 1.5 ? 0.52 : 0.95);
+
+              vec4 mvPos = modelViewMatrix * vec4(rotated, 1.0);
+              gl_Position = projectionMatrix * mvPos;
+
+              float twinkle = pType > 1.5
+                ? (0.55 + 0.65 * pow(0.5 + 0.5 * sin(uTime * 3.8 + phase), 3.0))
+                : (0.78 + 0.28 * sin(uTime * 2.8 + phase));
+              float typeScale = pType > 0.5 && pType < 1.5 ? 36.0 : (pType > 1.5 ? 44.0 : 14.0);
+              float baseSize = typeScale * sizeSeed * twinkle * (0.6 + 0.5 * uBloomNorm + uGestureEnergy * 0.35);
+              gl_PointSize = clamp(baseSize * uPixelRatio / max(1.0, -mvPos.z), 2.0, 72.0);
+            }
+          `,
+          fragmentShader: /* glsl */ `
+            precision highp float;
+            varying vec4 vMeta;
+            varying float vAlpha;
+            uniform float uTime;
+            uniform float uGestureEnergy;
+            uniform float uAliveAmount;
+
+            void main() {
+              vec2 uv = gl_PointCoord - 0.5;
+              float dist = length(uv);
+              if (dist > 0.5) discard;
+
+              float pType = vMeta.y;
+              float phase = vMeta.z;
+              float shape = 0.0;
+
+              if (pType > 0.5 && pType < 1.5) {
+                // Velvety out-of-focus lens bokeh orb with soft Fresnel rim
+                float disc = smoothstep(0.48, 0.12, dist);
+                float rim = smoothstep(0.49, 0.38, dist) * smoothstep(0.24, 0.38, dist);
+                shape = disc * 0.28 + rim * 0.42;
+              } else if (pType > 1.5) {
+                // Rotated 4-point hero anamorphic star glint
+                float cs = cos(phase * 0.5), sn = sin(phase * 0.5);
+                vec2 ruv = vec2(uv.x * cs - uv.y * sn, uv.x * sn + uv.y * cs);
+                float core = exp(-dist * 12.0);
+                float rayH = smoothstep(0.036, 0.0, abs(ruv.y)) * smoothstep(0.49, 0.0, abs(ruv.x));
+                float rayV = smoothstep(0.036, 0.0, abs(ruv.x)) * smoothstep(0.49, 0.0, abs(ruv.y));
+                shape = core * 1.45 + (rayH + rayV) * 0.85;
+              } else {
+                // Fine silky micro-stardust mote
+                float core = exp(-dist * 11.0);
+                float halo = smoothstep(0.45, 0.0, dist);
+                shape = core * 1.2 + halo * halo * 0.35;
+              }
+
+              vec3 colSapphire = vec3(0.48, 0.85, 1.55);
+              vec3 colCyan = vec3(0.72, 1.25, 1.65);
+              vec3 colGold = vec3(1.52, 1.22, 0.65);
+              vec3 colPearl = vec3(1.45, 1.52, 1.62);
+
+              float paletteMix = 0.5 + 0.5 * sin(vMeta.x * 6.0 + phase - uTime * 0.9);
+              vec3 col = mix(colSapphire, colCyan, paletteMix);
+              if (mod(floor(vMeta.x * 14.0), 3.0) < 1.0) col = mix(col, colGold, 0.55);
+              if (pType > 1.5) col = mix(col, colPearl, 0.60);
+              col *= (0.95 + uGestureEnergy * 0.55 + uAliveAmount * 0.25);
+
+              gl_FragColor = vec4(col * shape, clamp(shape * vAlpha, 0.0, 1.0));
+            }
+          `
+        });
+
+        const spiralPoints = new THREE.Points(spiralGeo, spiralMat);
+        spiralGroup.add(spiralPoints);
+
+        // Two Volumetric Soft-Fresnel Luminous Ribbons curling around the blossoms
+        ribbonUniforms = {
+          uTime: { value: 0 },
+          uBloomNorm: { value: 0.35 },
+          uGestureEnergy: { value: 0 },
+          uAliveAmount: { value: 0 }
+        };
+
+        for (let arm = 0; arm < 2; arm++) {
+          const curvePts = [];
+          const segs = 72;
+          for (let s = 0; s <= segs; s++) {
+            const tn = s / segs;
+            const ang = tn * Math.PI * 5.2 + arm * Math.PI;
+            const rad = 0.42 + Math.sin(tn * Math.PI) * 1.48;
+            const py = (tn - 0.48) * 4.2;
+            curvePts.push(new THREE.Vector3(Math.cos(ang) * rad, py, Math.sin(ang) * rad));
+          }
+          const curve = new THREE.CatmullRomCurve3(curvePts);
+          const tubeGeo = new THREE.TubeGeometry(curve, 140, 0.036, 10, false);
+          const tubeMat = new THREE.ShaderMaterial({
+            uniforms: ribbonUniforms,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            vertexShader: /* glsl */ `
+              varying vec2 vUv;
+              varying vec3 vViewNormal;
+              varying vec3 vViewDir;
+              void main() {
+                vUv = uv;
+                vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+                vViewNormal = normalize(normalMatrix * normal);
+                vViewDir = normalize(-mvPos.xyz);
+                gl_Position = projectionMatrix * mvPos;
+              }
+            `,
+            fragmentShader: /* glsl */ `
+              precision highp float;
+              varying vec2 vUv;
+              varying vec3 vViewNormal;
+              varying vec3 vViewDir;
+              uniform float uTime;
+              uniform float uBloomNorm;
+              uniform float uGestureEnergy;
+              uniform float uAliveAmount;
+
+              void main() {
+                // Soft volumetric Gaussian cross-section (eliminates hard wire edges)
+                float fresnelCore = pow(max(0.0, abs(dot(normalize(vViewNormal), normalize(vViewDir)))), 2.4);
+
+                float head1 = fract(vUv.x - uTime * (0.24 + uGestureEnergy * 0.45));
+                float head2 = fract(vUv.x - uTime * (0.24 + uGestureEnergy * 0.45) + 0.5);
+                float pulse = smoothstep(0.0, 0.25, head1) * smoothstep(0.85, 0.25, head1)
+                            + 0.55 * smoothstep(0.0, 0.25, head2) * smoothstep(0.85, 0.25, head2);
+                float edgeFade = smoothstep(0.0, 0.16, vUv.x) * smoothstep(1.0, 0.84, vUv.x);
+                float vis = smoothstep(0.08, 0.9, uBloomNorm) * (0.10 + uGestureEnergy * 0.55 + uAliveAmount * 0.28);
+
+                vec3 col = mix(vec3(0.38, 0.75, 1.52), vec3(0.68, 1.22, 1.58), clamp(pulse, 0.0, 1.0));
+                gl_FragColor = vec4(col * fresnelCore, clamp(fresnelCore * (0.18 + pulse * 0.82) * edgeFade * vis, 0.0, 1.0));
+              }
+            `
+          });
+          const ribbon = new THREE.Mesh(tubeGeo, tubeMat);
+          spiralGroup.add(ribbon);
+          ribbonMeshes.push(ribbon);
+        }
+
+        // 3D Translucent Floating Blue Tulip Tepals (drift softly out once flowers bloom)
+        const tepalShape = new THREE.Shape();
+        tepalShape.moveTo(0, 0);
+        tepalShape.bezierCurveTo(-0.065, 0.08, -0.095, 0.18, -0.05, 0.28);
+        tepalShape.bezierCurveTo(-0.02, 0.33, 0.0, 0.35, 0.0, 0.36); // softly pointed ogee tip
+        tepalShape.bezierCurveTo(0.0, 0.35, 0.02, 0.33, 0.05, 0.28);
+        tepalShape.bezierCurveTo(0.095, 0.18, 0.065, 0.08, 0, 0);
+
+        const petalGeo = new THREE.ShapeGeometry(tepalShape, 12);
+        // Subtle concave cupping in Z
+        const pAttr = petalGeo.attributes.position;
+        for (let k = 0; k < pAttr.count; k++) {
+          const px = pAttr.getX(k);
+          const py = pAttr.getY(k);
+          pAttr.setZ(k, (px * px * 2.8 - py * 0.06));
+        }
+        petalGeo.computeVertexNormals();
+
+        const petalMat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color(0.32, 0.65, 1.35),
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        for (let i = 0; i < 42; i++) {
+          const mesh = new THREE.Mesh(petalGeo, petalMat);
+          const data = {
+            mesh,
+            baseAngle: Math.random() * Math.PI * 2,
+            radius: 0.4 + Math.random() * 1.85,
+            y: (Math.random() - 0.5) * 3.8,
+            zOffset: (Math.random() - 0.5) * 1.4,
+            speedY: 0.08 + Math.random() * 0.16,
+            swirlSpeed: (Math.random() - 0.5) * 0.7,
+            flutterSpeed: 1.5 + Math.random() * 2.0,
+            phase: Math.random() * Math.PI * 2,
+            scale: 0.65 + Math.random() * 0.85
+          };
+          mesh.scale.setScalar(data.scale);
+          spiralGroup.add(mesh);
+          floatingPetals.push(data);
+        }
+
+        // HDR EffectComposer with HalfFloat render target + UnrealBloomPass
+        const rt = new THREE.WebGLRenderTarget(w, h, {
+          type: THREE.HalfFloatType,
+          samples: 0
+        });
+        composer = new EffectComposer(renderer, rt);
+
+        const bgPass = new RenderPass(bgScene, orthoCam);
+        composer.addPass(bgPass);
+
+        const fxPass = new RenderPass(fxScene, perspCam);
+        fxPass.clear = false;
+        fxPass.clearDepth = true;
+        composer.addPass(fxPass);
+
+        bloomPass = new UnrealBloomPass(
+          new THREE.Vector2(w, h),
+          0.32, // tuned strength for blue luminosity
+          0.62, // radius
+          0.82  // threshold
+        );
+        composer.addPass(bloomPass);
+        composer.addPass(new OutputPass());
+        composer.addPass(new OutputPass());
+
+        webglActive = true;
+      } catch (err) {
+        console.warn('WebGL pipeline fallback to native video:', err);
+        webglActive = false;
+      }
+    }
+
+    initPremiumWebGL();
+
+    function handleResize() {
+      applyResponsiveVideoSource();
+      if (!webglActive || !renderer || !composer) return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+
+      perspCam.aspect = w / h;
+      perspCam.updateProjectionMatrix();
+
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(w, h, false);
+      composer.setSize(w, h);
+      bloomPass.resolution.set(w, h);
+      bgUniforms.uViewSize.value.set(w, h);
+      spiralUniforms.uPixelRatio.value = dpr;
+    }
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => setTimeout(handleResize, 150));
+
+    // Sync actual video dimensions once metadata loads
+    video.addEventListener('loadedmetadata', () => {
+      if (bgUniforms && video.videoWidth && video.videoHeight) {
+        bgUniforms.uVideoSize.value.set(video.videoWidth, video.videoHeight);
+      }
     });
 
-    // Speed Steps
+    // ------------------------------------------------------------------------
+    // 4. TRANSPORT & HUD LOGIC
+    // ------------------------------------------------------------------------
     const speedSteps = [0.5, 1.0, 1.5, 2.0];
     let speedIdx = 1;
+    let hudTimeout = null;
+    let idleTimer = null;
 
-    // Toggle Pause/Resume
+    function showBloomHud(pct, label = 'BLOOM', persist = false) {
+      const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+      bloomText.textContent = label.includes('LIVING') ? label : `${label}: ${clamped}%`;
+      bloomMiniFill.style.width = `${clamped}%`;
+      bloomHud.classList.add('visible');
+      clearTimeout(hudTimeout);
+      if (!handTrackingActive && !persist) {
+        hudTimeout = setTimeout(() => bloomHud.classList.remove('visible'), 1300);
+      }
+    }
+
     function togglePause() {
+      if (handTrackingActive) return;
+      setBloomAliveMode(false);
       if (video.paused) {
         video.play();
         pauseBtn.textContent = 'Pause';
@@ -239,11 +1125,7 @@
 
     pauseBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      togglePause();
-      triggerControlsActive();
-    });
-
-    viewport.addEventListener('click', () => {
+      if (handTrackingActive) stopHandTracking();
       togglePause();
       triggerControlsActive();
     });
@@ -257,7 +1139,6 @@
       triggerControlsActive();
     });
 
-    // Time Readout & Progress Line
     function formatTime(s) {
       const sec = Math.floor(s || 0);
       const m = Math.floor(sec / 60);
@@ -267,32 +1148,559 @@
 
     video.addEventListener('timeupdate', () => {
       const cur = video.currentTime;
-      const dur = video.duration || 18.0;
+      const dur = video.duration || DURATION;
       timeLabel.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
       progressBar.style.width = ((cur / dur) * 100) + '%';
     });
 
     progressTrack.addEventListener('click', (e) => {
+      setBloomAliveMode(false);
       const rect = progressTrack.getBoundingClientRect();
       const pct = (e.clientX - rect.left) / rect.width;
-      video.currentTime = pct * (video.duration || 18.0);
+      video.currentTime = pct * (video.duration || DURATION);
     });
 
-    // Auto-Fade Controls on Inactivity (3.5s)
-    let idleTimer = null;
     function triggerControlsActive() {
       controlsPill.classList.remove('faded');
       clearTimeout(idleTimer);
-      if (!video.paused) {
-        idleTimer = setTimeout(() => {
-          controlsPill.classList.add('faded');
-        }, 3500);
+      if (!video.paused && !handTrackingActive) {
+        idleTimer = setTimeout(() => controlsPill.classList.add('faded'), 3500);
       }
     }
 
     window.addEventListener('mousemove', triggerControlsActive);
     window.addEventListener('touchstart', triggerControlsActive);
     triggerControlsActive();
+    setTimeout(() => gestureHint.classList.add('hidden'), 6500);
+
+    // ------------------------------------------------------------------------
+    // 5. TOUCHSCREEN & POINTER FINGER GESTURES + SPIRAL STEERING
+    // ------------------------------------------------------------------------
+    let isDragging = false;
+    let dragMoved = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragStartTime = 0;
+    let pinchStartDist = 0;
+    let pinchStartTime = 0;
+
+    function getTouchDist(t1, t2) {
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+
+    function updatePointerSpiralPos(clientX, clientY) {
+      if (handTrackingActive) return;
+      targetHandX = ((clientX / window.innerWidth) - 0.5) * 2.0;
+      targetHandY = -((clientY / window.innerHeight) - 0.5) * 2.0;
+      targetHandRoll = targetHandX * 0.35;
+    }
+
+    viewport.addEventListener('touchstart', (e) => {
+      gestureHint.classList.add('hidden');
+      if (handTrackingActive) return;
+      if (e.touches.length === 2) {
+        setBloomAliveMode(false);
+        video.pause();
+        pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+        pinchStartTime = video.currentTime;
+        dragMoved = true;
+      } else if (e.touches.length === 1) {
+        isDragging = true;
+        dragMoved = false;
+        dragStartX = e.touches[0].clientX;
+        dragStartY = e.touches[0].clientY;
+        dragStartTime = video.currentTime;
+        updatePointerSpiralPos(dragStartX, dragStartY);
+      }
+      triggerControlsActive();
+    }, { passive: false });
+
+    viewport.addEventListener('touchmove', (e) => {
+      if (handTrackingActive) return;
+      e.preventDefault();
+      const dur = video.duration || DURATION;
+
+      if (e.touches.length === 2 && pinchStartDist > 0) {
+        const curDist = getTouchDist(e.touches[0], e.touches[1]);
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) * 0.5;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) * 0.5;
+        updatePointerSpiralPos(cx, cy);
+        const deltaRatio = (curDist - pinchStartDist) / Math.min(window.innerWidth, window.innerHeight);
+        const newTime = Math.max(0, Math.min(dur, pinchStartTime + deltaRatio * 20.0));
+        scheduleSeek(newTime);
+        const bloomNorm = Math.max(0, Math.min(1, (newTime - BLOOM_START_SEC) / (BLOOM_END_SEC - BLOOM_START_SEC)));
+        targetBloomNorm = bloomNorm;
+        gestureLastMoveTime = performance.now() * 0.001;
+        fxState.spiralBurst = Math.min(1.0, fxState.spiralBurst + 0.14);
+        showBloomHud(bloomNorm * 100, 'PINCH BLOOM');
+      } else if (e.touches.length === 1 && isDragging) {
+        const dx = e.touches[0].clientX - dragStartX;
+        const dy = dragStartY - e.touches[0].clientY;
+        updatePointerSpiralPos(e.touches[0].clientX, e.touches[0].clientY);
+        if (Math.hypot(dx, dy) > 8) {
+          if (!dragMoved) {
+            dragMoved = true;
+            setBloomAliveMode(false);
+            video.pause();
+          }
+          const primaryDelta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+          const span = Math.max(window.innerWidth, window.innerHeight) * 0.65;
+          const newTime = Math.max(0, Math.min(dur, dragStartTime + (primaryDelta / span) * dur));
+          scheduleSeek(newTime);
+          const bloomNorm = Math.max(0, Math.min(1, (newTime - BLOOM_START_SEC) / (BLOOM_END_SEC - BLOOM_START_SEC)));
+          targetBloomNorm = bloomNorm;
+          gestureLastMoveTime = performance.now() * 0.001;
+          fxState.spiralBurst = Math.min(1.0, fxState.spiralBurst + 0.12);
+          showBloomHud(bloomNorm * 100, 'BLOOM');
+        }
+      }
+    }, { passive: false });
+
+    viewport.addEventListener('touchend', (e) => {
+      if (handTrackingActive) return;
+      if (!dragMoved && e.touches.length === 0) {
+        togglePause();
+      } else if (dragMoved && e.touches.length === 0) {
+        pauseBtn.textContent = video.paused ? 'Resume' : 'Pause';
+        if (targetBloomNorm >= BLOOM_FULL_THRESHOLD) {
+          setBloomAliveMode(true);
+        }
+      }
+      isDragging = false;
+      pinchStartDist = 0;
+    });
+
+    viewport.addEventListener('mousedown', (e) => {
+      if (handTrackingActive || e.button !== 0) return;
+      isDragging = true;
+      dragMoved = false;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      dragStartTime = video.currentTime;
+      gestureHint.classList.add('hidden');
+      updatePointerSpiralPos(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!handTrackingActive) {
+        updatePointerSpiralPos(e.clientX, e.clientY);
+      }
+      if (!isDragging || handTrackingActive) return;
+      const dx = e.clientX - dragStartX;
+      const dy = dragStartY - e.clientY;
+      if (Math.hypot(dx, dy) > 6) {
+        if (!dragMoved) {
+          dragMoved = true;
+          setBloomAliveMode(false);
+          video.pause();
+        }
+        const dur = video.duration || DURATION;
+        const primaryDelta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+        const span = Math.max(window.innerWidth, window.innerHeight) * 0.55;
+        const newTime = Math.max(0, Math.min(dur, dragStartTime + (primaryDelta / span) * dur));
+        scheduleSeek(newTime);
+        const bloomNorm = Math.max(0, Math.min(1, (newTime - BLOOM_START_SEC) / (BLOOM_END_SEC - BLOOM_START_SEC)));
+        targetBloomNorm = bloomNorm;
+        gestureLastMoveTime = performance.now() * 0.001;
+        fxState.spiralBurst = Math.min(1.0, fxState.spiralBurst + 0.12);
+        showBloomHud(bloomNorm * 100, 'BLOOM');
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDragging || handTrackingActive) return;
+      if (!dragMoved) {
+        togglePause();
+      } else {
+        pauseBtn.textContent = video.paused ? 'Resume' : 'Pause';
+        if (targetBloomNorm >= BLOOM_FULL_THRESHOLD) {
+          setBloomAliveMode(true);
+        }
+      }
+      isDragging = false;
+    });
+
+    viewport.addEventListener('wheel', (e) => {
+      if (handTrackingActive) return;
+      e.preventDefault();
+      setBloomAliveMode(false);
+      video.pause();
+      pauseBtn.textContent = 'Resume';
+      const dur = video.duration || DURATION;
+      const delta = (-e.deltaY) * 0.012;
+      const newTime = Math.max(0, Math.min(dur, video.currentTime + delta));
+      scheduleSeek(newTime);
+      const bloomNorm = Math.max(0, Math.min(1, (newTime - BLOOM_START_SEC) / (BLOOM_END_SEC - BLOOM_START_SEC)));
+      targetBloomNorm = bloomNorm;
+      gestureLastMoveTime = performance.now() * 0.001;
+      fxState.spiralBurst = Math.min(1.0, fxState.spiralBurst + 0.1);
+      showBloomHud(bloomNorm * 100, 'BLOOM');
+      triggerControlsActive();
+    }, { passive: false });
+
+    // ------------------------------------------------------------------------
+    // 6. AI CAMERA HAND & FINGER GESTURE TRACKING (1-Euro Filter + Living Bloom)
+    // ------------------------------------------------------------------------
+    let handTrackingActive = false;
+    let mpHands = null;
+    let mpCamera = null;
+
+    const fBloom = new OneEuroFilter(1.15, 0.095, 1.0);
+    const fHandX = new OneEuroFilter(1.4, 0.06, 1.0);
+    const fHandY = new OneEuroFilter(1.4, 0.06, 1.0);
+    const fHandRoll = new OneEuroFilter(1.2, 0.05, 1.0);
+
+    function loadScript(url) {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${url}"]`)) return resolve();
+        const s = document.createElement('script');
+        s.src = url;
+        s.crossOrigin = 'anonymous';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    async function startHandTracking() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Camera access requires HTTPS or localhost. Touchscreen pinch & drag gestures are active!');
+        return;
+      }
+
+      handCamBtn.textContent = 'Loading...';
+      handCamBtn.disabled = true;
+
+      try {
+        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
+        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+
+        if (!mpHands) {
+          mpHands = new window.Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+          mpHands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.65,
+            minTrackingConfidence: 0.65
+          });
+          mpHands.onResults(onHandResults);
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } },
+          audio: false
+        });
+        webcamVideo.srcObject = stream;
+        await webcamVideo.play();
+
+        mpCamera = new window.Camera(webcamVideo, {
+          onFrame: async () => {
+            if (handTrackingActive && mpHands) {
+              await mpHands.send({ image: webcamVideo });
+            }
+          },
+          width: 320,
+          height: 240
+        });
+        await mpCamera.start();
+
+        handTrackingActive = true;
+        handEverDetected = false;
+        bloomSettleTimer = 0;
+        fBloom.reset();
+        fHandX.reset();
+        fHandY.reset();
+        fHandRoll.reset();
+
+        video.pause();
+        pauseToast.classList.remove('show');
+        setBloomAliveMode(false);
+        bloomMode = 'GESTURE_SCRUB';
+
+        handCamBtn.classList.add('active');
+        handCamBtn.textContent = 'Hand On';
+        handCamBtn.disabled = false;
+        handCamPip.classList.add('active');
+        gestureHint.classList.add('hidden');
+
+        const initialNorm = Math.max(0, Math.min(1, (video.currentTime - BLOOM_START_SEC) / (BLOOM_END_SEC - BLOOM_START_SEC)));
+        bloomSpring.val = initialNorm;
+        bloomSpring.vel = 0;
+        targetBloomNorm = initialNorm;
+      } catch (err) {
+        console.error(err);
+        handCamBtn.textContent = 'Hand Cam';
+        handCamBtn.disabled = false;
+        alert('Could not access camera (' + err.message + '). Use touch pinch or drag to control bloom.');
+      }
+    }
+
+    function stopHandTracking() {
+      handTrackingActive = false;
+      handDetectedLast = false;
+      if (mpCamera) {
+        try { mpCamera.stop(); } catch (e) {}
+        mpCamera = null;
+      }
+      if (webcamVideo.srcObject) {
+        webcamVideo.srcObject.getTracks().forEach(t => t.stop());
+        webcamVideo.srcObject = null;
+      }
+      setBloomAliveMode(false);
+      handCamBtn.classList.remove('active');
+      handCamBtn.textContent = 'Hand Cam';
+      handCamPip.classList.remove('active');
+      bloomHud.classList.remove('visible');
+      video.play().catch(() => {});
+      pauseBtn.textContent = 'Pause';
+    }
+
+    function dist2D(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function smoothStep(edge0, edge1, x) {
+      const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function onHandResults(results) {
+      handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+      handCtx.drawImage(results.image, 0, 0, handCanvas.width, handCanvas.height);
+
+      const nowSec = performance.now() * 0.001;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const lm = results.multiHandLandmarks[0];
+        handDetectedLast = true;
+
+        // Robust palm normalization combining height (0->9) and palm span (5->17)
+        const palmScale = Math.max(0.06, Math.hypot(
+          dist2D(lm[0], lm[9]) * 0.78,
+          dist2D(lm[5], lm[17]) * 0.88
+        ));
+
+        // Thumb Tip (4) to Index Tip (8) + Four-Finger Extension
+        const pinchDist = dist2D(lm[4], lm[8]) / palmScale;
+        const fingerSpread = (
+          dist2D(lm[0], lm[8]) +
+          dist2D(lm[0], lm[12]) +
+          dist2D(lm[0], lm[16]) +
+          dist2D(lm[0], lm[20])
+        ) / (4.0 * palmScale);
+
+        const pinchNorm = smoothStep(0.18, 1.05, pinchDist);
+        const palmNorm = smoothStep(0.75, 1.72, fingerSpread);
+        const rawBloom = 0.62 * pinchNorm + 0.38 * palmNorm;
+
+        // Mirrored hand position (-1..+1) & wrist roll angle
+        const palmCenterX = (lm[0].x + lm[9].x) * 0.5;
+        const palmCenterY = (lm[0].y + lm[9].y) * 0.5;
+        const rawX = (0.5 - palmCenterX) * 2.2;
+        const rawY = (0.5 - palmCenterY) * 2.0;
+        const rawRoll = Math.atan2(lm[9].x - lm[0].x, lm[0].y - lm[9].y);
+
+        // Apply 1€ Adaptive Filters
+        const filteredBloom = fBloom.filter(rawBloom, nowSec);
+        const filteredX = fHandX.filter(rawX, nowSec);
+        const filteredY = fHandY.filter(rawY, nowSec);
+        const filteredRoll = fHandRoll.filter(rawRoll, nowSec);
+
+        if (!handEverDetected) {
+          handEverDetected = true;
+          lastAnchorSample = { bloom: filteredBloom, x: filteredX, y: filteredY };
+        }
+
+        // Check if currently in post-bloom living glow mode -> only wake when intentional gesture returns
+        if (bloomMode === 'BLOOMED_ALIVE') {
+          const bloomChangeFromAlive = Math.abs(filteredBloom - aliveAnchor.bloom);
+          const handMoveFromAlive = Math.hypot(filteredX - aliveAnchor.x, filteredY - aliveAnchor.y);
+          if (bloomChangeFromAlive > 0.068 || filteredBloom < BLOOM_FULL_THRESHOLD - 0.1 || handMoveFromAlive > 0.24) {
+            setBloomAliveMode(false);
+            bloomSettleTimer = 0;
+            gestureLastMoveTime = nowSec;
+          } else {
+            // Subtle hand tilt still gently guides camera/spiral while bloom stays alive
+            targetHandX = filteredX;
+            targetHandY = filteredY;
+            targetHandRoll = filteredRoll;
+          }
+        }
+
+        if (bloomMode !== 'BLOOMED_ALIVE') {
+          const dBloom = Math.abs(filteredBloom - lastAnchorSample.bloom);
+          const dPos = Math.hypot(filteredX - lastAnchorSample.x, filteredY - lastAnchorSample.y);
+
+          if (dBloom > 0.015 || dPos > 0.025) {
+            gestureLastMoveTime = nowSec;
+            bloomSettleTimer = 0;
+            lastAnchorSample = { bloom: filteredBloom, x: filteredX, y: filteredY };
+          }
+
+          targetBloomNorm = filteredBloom;
+          targetHandX = filteredX;
+          targetHandY = filteredY;
+          targetHandRoll = filteredRoll;
+
+          // When flowers bloom (>= 78%) and hand settles briefly (~0.45s), activate Living Bloom Aura!
+          if (bloomSpring.val >= BLOOM_FULL_THRESHOLD && (nowSec - gestureLastMoveTime) > 0.45) {
+            setBloomAliveMode(true);
+          }
+        }
+
+        // Draw crisp rose-gold tracking overlay on PiP
+        const cw = handCanvas.width, ch = handCanvas.height;
+        const pThumb = { x: lm[4].x * cw, y: lm[4].y * ch };
+        const pIndex = { x: lm[8].x * cw, y: lm[8].y * ch };
+
+        handCtx.strokeStyle = bloomMode === 'BLOOMED_ALIVE' ? 'rgba(255, 214, 165, 0.95)' : 'rgba(248, 165, 194, 0.92)';
+        handCtx.lineWidth = 2.5;
+        handCtx.beginPath();
+        handCtx.moveTo(pThumb.x, pThumb.y);
+        handCtx.lineTo(pIndex.x, pIndex.y);
+        handCtx.stroke();
+
+        [lm[4], lm[8], lm[12], lm[16], lm[20]].forEach((pt, idx) => {
+          handCtx.fillStyle = idx < 2 ? '#ffd6a5' : '#f8a5c2';
+          handCtx.beginPath();
+          handCtx.arc(pt.x * cw, pt.y * ch, idx < 2 ? 4.5 : 3, 0, 2 * Math.PI);
+          handCtx.fill();
+        });
+
+        handStatus.textContent = bloomMode === 'BLOOMED_ALIVE'
+          ? 'Living Glow'
+          : `Bloom ${Math.round(filteredBloom * 100)}%`;
+      } else {
+        handDetectedLast = false;
+        handStatus.textContent = bloomMode === 'BLOOMED_ALIVE' ? 'Living Glow' : 'Show Hand';
+        // If user already bloomed flowers via hand gesture and lowers hand, preserve Living Bloom Aura!
+        if (handEverDetected && bloomSpring.val >= BLOOM_FULL_THRESHOLD && bloomMode !== 'BLOOMED_ALIVE') {
+          setBloomAliveMode(true);
+        }
+      }
+    }
+
+    handCamBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (handTrackingActive) {
+        stopHandTracking();
+      } else {
+        startHandTracking();
+      }
+    });
+
+    // ------------------------------------------------------------------------
+    // 7. UNIFIED 60-120FPS PHYSICS & PREMIUM 3D RENDER LOOP
+    // ------------------------------------------------------------------------
+    let lastFrameMs = performance.now();
+    let spinPhase = 0;
+    let frameCount = 0;
+
+    function masterTick(nowMs) {
+      requestAnimationFrame(masterTick);
+      const dt = Math.max(0.001, Math.min(0.05, (nowMs - lastFrameMs) * 0.001));
+      lastFrameMs = nowMs;
+      const tSec = nowMs * 0.001;
+
+      // Smooth spring updates
+      if (handTrackingActive) {
+        if (bloomMode === 'GESTURE_SCRUB') {
+          const prevVal = bloomSpring.val;
+          stepSpring(bloomSpring, targetBloomNorm, dt, 105, 18.5);
+          const velocity = Math.abs(bloomSpring.val - prevVal) / dt;
+          fxState.spiralBurst = Math.min(1.0, Math.max(fxState.spiralBurst * Math.exp(-dt * 3.5), velocity * 0.85));
+
+          const targetSec = BLOOM_START_SEC + bloomSpring.val * (BLOOM_END_SEC - BLOOM_START_SEC);
+          scheduleSeek(targetSec);
+          showBloomHud(bloomSpring.val * 100, 'HAND BLOOM');
+        } else if (bloomMode === 'BLOOMED_ALIVE') {
+          // Hold radiant bloom smoothly while petals move & glow in shader
+          stepSpring(bloomSpring, Math.max(BLOOM_FULL_THRESHOLD + 0.08, aliveAnchor.bloom), dt, 60, 16);
+          fxState.spiralBurst *= Math.exp(-dt * 2.2);
+        }
+      } else {
+        // Free playback or touch/mouse scrub syncs bloom curve dynamically
+        if (!video.paused) {
+          const videoBloom = Math.max(0, Math.min(1, (video.currentTime - BLOOM_START_SEC) / (BLOOM_END_SEC - BLOOM_START_SEC)));
+          targetBloomNorm = videoBloom;
+        }
+        stepSpring(bloomSpring, targetBloomNorm, dt, 110, 19);
+        fxState.spiralBurst *= Math.exp(-dt * 3.0);
+      }
+
+      stepSpring(handXSpring, targetHandX, dt, 85, 16);
+      stepSpring(handYSpring, targetHandY, dt, 85, 16);
+      stepSpring(handRollSpring, targetHandRoll, dt, 85, 16);
+
+      // Update WebGL scene & UnrealBloomPass
+      if (webglActive && composer && video.readyState >= 2) {
+        if (!document.body.classList.contains('webgl-ready')) {
+          frameCount++;
+          if (frameCount >= 2) document.body.classList.add('webgl-ready');
+        }
+
+        const activeBloom = Math.max(0, Math.min(1, bloomSpring.val));
+        spinPhase += dt * (0.45 + activeBloom * 0.65 + fxState.spiralBurst * 2.1);
+
+        // Backdrop shader uniforms (petal motion, glow emission, animated background sparkle gradients)
+        bgUniforms.uTime.value = tSec;
+        bgUniforms.uAliveAmount.value = fxState.aliveAmount;
+        bgUniforms.uBloomNorm.value = activeBloom;
+        bgUniforms.uGestureEnergy.value = fxState.spiralBurst;
+        bgUniforms.uHandOffset.value.set(handXSpring.val, handYSpring.val);
+
+        // Steer 3D Sparkle Spiral directly with gesture / hand tilt & position
+        spiralGroup.rotation.y = handXSpring.val * 0.58 + spinPhase * 0.14;
+        spiralGroup.rotation.x = -handYSpring.val * 0.42 + Math.sin(tSec * 0.55) * 0.08 * fxState.aliveAmount;
+        spiralGroup.rotation.z = -handRollSpring.val * 0.48;
+        spiralGroup.position.x = handXSpring.val * 0.55;
+        spiralGroup.position.y = handYSpring.val * 0.35;
+
+        spiralUniforms.uTime.value = tSec;
+        spiralUniforms.uBloomNorm.value = activeBloom;
+        spiralUniforms.uGestureEnergy.value = fxState.spiralBurst;
+        spiralUniforms.uAliveAmount.value = fxState.aliveAmount;
+        spiralUniforms.uSpinPhase.value = spinPhase;
+
+        ribbonUniforms.uTime.value = tSec;
+        ribbonUniforms.uBloomNorm.value = activeBloom;
+        ribbonUniforms.uGestureEnergy.value = fxState.spiralBurst;
+        ribbonUniforms.uAliveAmount.value = fxState.aliveAmount;
+
+        // Animate 3D translucent sakura petals drifting softly when bloomed
+        const petalVis = Math.max(0, fxState.aliveAmount * 0.58 + fxState.spiralBurst * 0.22);
+        for (let i = 0; i < floatingPetals.length; i++) {
+          const p = floatingPetals[i];
+          p.mesh.material.opacity = petalVis;
+          if (petalVis > 0.01) {
+            p.y += p.speedY * dt;
+            if (p.y > 2.2) p.y = -2.0;
+            const ang = p.baseAngle + tSec * p.swirlSpeed + handXSpring.val * 0.6;
+            const r = p.radius * (0.75 + 0.35 * activeBloom);
+            p.mesh.position.set(
+              Math.cos(ang) * r,
+              p.y + Math.sin(tSec * p.flutterSpeed + p.phase) * 0.12,
+              Math.sin(ang) * r + p.zOffset
+            );
+            p.mesh.rotation.set(
+              tSec * p.flutterSpeed * 0.7 + p.phase,
+              tSec * p.flutterSpeed * 0.5,
+              Math.sin(tSec * p.flutterSpeed + p.phase) * 0.85
+            );
+          }
+        }
+
+        // Dynamic HDR bloom strength reacting to gesture energy + post-bloom living glow
+        bloomPass.strength = 0.22 + fxState.spiralBurst * 0.36 + fxState.aliveAmount * (0.28 + 0.08 * Math.sin(tSec * 2.1));
+        bloomPass.radius = 0.55 + fxState.aliveAmount * 0.22;
+
+        composer.render();
+      }
+    }
+
+    requestAnimationFrame(masterTick);
 
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
@@ -307,6 +1715,12 @@
         video.playbackRate = 2.0;
         speedIdx = 3;
         speedBtn.textContent = '2.0x';
+      } else if (e.key === 'ArrowRight') {
+        setBloomAliveMode(false);
+        video.currentTime = Math.min(DURATION, video.currentTime + 0.5);
+      } else if (e.key === 'ArrowLeft') {
+        setBloomAliveMode(false);
+        video.currentTime = Math.max(0, video.currentTime - 0.5);
       }
       triggerControlsActive();
     });

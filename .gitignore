@@ -12,3 +12,10 @@ ffmpeg.exe
 # Generated temporary previews & test frames
 preview_*.png
 test_*.png
+previews/
+
+# Screen recordings & scratch files
+Screen Recording *.mp4
+test.mp4
+scratch/
+
