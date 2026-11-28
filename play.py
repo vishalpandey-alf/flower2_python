@@ -1,4 +1,4 @@
-"""Interactive desktop viewer for Blue Tulip Botanical Animation."""
+"""Interactive desktop viewer for Tulip Botanical Animation."""
 import os
 import sys
 
@@ -7,8 +7,6 @@ def play():
     candidates = [
         "tulip_landscape.mp4",
         "tulip_portrait.mp4",
-        "sakura_landscape.mp4",
-        "sakura_3d_botanical_animation.mp4"
     ]
     target = None
     for c in candidates:
@@ -26,7 +24,7 @@ def play():
         print(f"Error opening video: {target}")
         sys.exit(1)
 
-    window_name = "Blue Tulip 3D Botanical Animation"
+    window_name = "Tulip 3D Botanical Animation"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     delay = int(1000.0 / fps)

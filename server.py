@@ -25,24 +25,14 @@ def get_video():
         return get_video_landscape()
     elif mode == "portrait" or mode == "tall":
         return get_video_portrait()
-    # Preferred tulip video with fallback
-    for name in ["tulip_landscape.mp4", "sakura_landscape.mp4", "sakura_3d_botanical_animation.mp4"]:
-        if os.path.isfile(os.path.join(BASE_DIR, name)):
-            return send_from_directory(BASE_DIR, name, mimetype="video/mp4")
     return send_from_directory(BASE_DIR, "tulip_landscape.mp4", mimetype="video/mp4")
 
 @app.route("/video/landscape")
 def get_video_landscape():
-    for name in ["tulip_landscape.mp4", "sakura_landscape.mp4", "sakura_3d_botanical_animation.mp4"]:
-        if os.path.isfile(os.path.join(BASE_DIR, name)):
-            return send_from_directory(BASE_DIR, name, mimetype="video/mp4")
     return send_from_directory(BASE_DIR, "tulip_landscape.mp4", mimetype="video/mp4")
 
 @app.route("/video/portrait")
 def get_video_portrait():
-    for name in ["tulip_portrait.mp4", "sakura_portrait.mp4", "sakura_3d_botanical_animation.mp4"]:
-        if os.path.isfile(os.path.join(BASE_DIR, name)):
-            return send_from_directory(BASE_DIR, name, mimetype="video/mp4")
     return send_from_directory(BASE_DIR, "tulip_portrait.mp4", mimetype="video/mp4")
 
 @app.route("/preview/<filename>")
@@ -51,5 +41,5 @@ def get_preview(filename):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"Blue Tulip Animation Server running at http://localhost:{port}")
+    print(f"Tulip Animation Server running at http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=False)

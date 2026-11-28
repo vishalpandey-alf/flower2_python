@@ -1,6 +1,6 @@
-# Blue Tulip 3D Botanical Animation
+# Blue Tulip 3D Botanical Animation (v2.4.0)
 
-A Python-based 3D procedural botanical animation project that creates a cinematic, photorealistic Blue Tulip (*Tulipa*, stylized sapphire cultivar) blooming sequence with an interactive gesture-controlled web showcase.
+A Python-based 3D procedural botanical animation project that creates a cinematic, photorealistic Blue Tulip (*Tulipa*, stylized sapphire cultivar) blooming sequence on a light ivory studio backdrop with an interactive gesture-controlled web showcase.
 
 ## Project Structure
 
@@ -8,9 +8,11 @@ A Python-based 3D procedural botanical animation project that creates a cinemati
 flower2_python/
 ├── ffmpeg.exe
 ├── generate_tulip_animation.py
+├── play.py
+├── server.py
+├── verify_metrics.py
 ├── tulip_landscape.mp4
 ├── tulip_portrait.mp4
-├── server.py
 ├── templates/
 │   └── index.html
 ├── prd.md
@@ -19,19 +21,19 @@ flower2_python/
 
 ## About the Project
 
-This project uses Python, NumPy, OpenCV, and FFmpeg to generate a stylized, photorealistic 3D botanical animation of a cluster of 7 Blue Tulips as they grow from slender, curved stems into full, radiant 6-tepal anthesis with golden-amber stamens and central pistils.
+This project uses Python, NumPy, OpenCV, and FFmpeg to generate a stylized, photorealistic 3D botanical animation of a bouquet of 18 Blue Tulip heads (15 open layered blooms and 3 closed 6-tepal imbricate buds) across 14 caulescent stems, 18 coaxial peduncle necks, and 29 broad glaucous leaves. Each open flower features 9 two-sided sapphire tepals (3 outer, 3 inner, 3 ruffled petaloids) unfolded via pre-solved `P_states` poses, 6 golden-amber bilobed stamens, and a central 3-lobed pistil.
 
 ## Animation Stages
 
-1. **Stem & Foliage Elongation (0.0s – 3.0s)** – 7 slender, curved green stems rise with 14 glaucous lanceolate leaves.
-2. **Bud Formation (3.0s – 6.0s)** – Closed teardrop buds form with cyan/pale-green apical tints.
-3. **Tepal Unfolding (6.0s – 9.0s)** – 6 tepals (3 outer, 3 inner) separate with ogee contour, translucent subsurface scattering, and subtle venation.
-4. **Androecium Maturation (9.0s – 13.0s)** – 6 golden-amber stamens (#E8B923) mature and dehisce with pollen around the 3-lobed pistil.
-5. **Full Radiant Anthesis & Orbital Reveal (13.0s – 18.0s)** – Full open bloom, orbital camera rotation, floating pollen and drifting sapphire tepals.
+1. **Stem & Foliage Elongation (0.0s – 3.0s)** – 14 slender, curved green stems rise with 29 glaucous lanceolate leaves.
+2. **Bud & Neck Formation (3.0s – 6.0s)** – Coaxial peduncle necks with receptacle domes connect stems to closed 6-tepal imbricate buds.
+3. **Tepal Unfolding (6.0s – 9.0s)** – 9 tepals per open flower separate via continuous `P_states` interpolation with two-sided sapphire pigment and azure subsurface scattering.
+4. **Androecium Maturation (9.0s – 13.0s)** – 6 golden-amber stamens mature and dehisce with pollen shimmer around the 3-lobed pistil.
+5. **Full Radiant Anthesis & Orbital Reveal (13.0s – 18.0s)** – Full open bloom, orbital camera rotation, golden pollen motes, and drifting two-sided sapphire tepals.
 
 ## Technologies Used
 
-- Python 3 (NumPy, OpenCV)
+- Python 3.10+ (NumPy, OpenCV)
 - FFmpeg (bundled `ffmpeg.exe` or system PATH, all-intra `-g 1 -bf 0 -crf 18`)
 - Three.js r183 (HDR EffectComposer, UnrealBloomPass, WebGL)
 - MediaPipe Hands (Zero-latency camera hand-tracking)
@@ -39,7 +41,7 @@ This project uses Python, NumPy, OpenCV, and FFmpeg to generate a stylized, phot
 
 ## Requirements
 
-- Python 3
+- Python 3.10+
 - NumPy
 - OpenCV (`opencv-python`)
 - Flask (`flask`)
@@ -48,12 +50,10 @@ This project uses Python, NumPy, OpenCV, and FFmpeg to generate a stylized, phot
 Install the Python packages:
 
 ```bash
-pip install numpy opencv-python flask imageio-ffmpeg
+pip install -r requirements.txt
 ```
 
 ## How to Run
-
-Open a terminal in the project folder:
 
 ### 1. Web Showcase (Localhost Website)
 
@@ -69,12 +69,16 @@ Features:
 - Responsive full-screen viewport (`tulip_landscape.mp4` on PC/landscape, `tulip_portrait.mp4` on mobile/portrait) with all-intra frame encoding (`-g 1 -bf 0`) for zero-lag scrubbing.
 - **3D HDR WebGL Compositor (Three.js `EffectComposer` + `UnrealBloomPass` + GSAP)**: real-time 3D double-helix sapphire/gold stardust spiral & luminous orbital ribbons that steer, tilt, and flare with hand or pointer gestures.
 - **One Euro Filter + Spring Physics Hand Tracking**: adaptive smoothing over MediaPipe Hands pinch & spread for zero-jitter, silky blossom opening.
-- **Living Post-Bloom Aura**: once bloomed via hand gesture, petals sway organically in a GLSL breeze alongside 3D floating sapphire tepals, radiant edge glow emission, and animated background sparkle aurora gradients (midnight navy, teal, sapphire, violet) until the next hand gesture.
+- **Living Post-Bloom Aura**: petals sway organically in a GLSL breeze alongside 3D floating sapphire tepals and animated background aurora gradients.
 - Touch & pointer controls (2-finger pinch, 1-finger drag, wheel scrub, tap pause/resume) with `>= 44px` touch targets.
 
-### 2. Render Full Animation
+### 2. Desktop Viewer
 
-To render the 540-frame landscape or portrait video:
+```bash
+python play.py
+```
+
+### 3. Render Full Animation
 
 ```bash
 # Render 1920x1080 landscape:
@@ -84,12 +88,14 @@ python generate_tulip_animation.py --aspect landscape --out tulip_landscape.mp4
 python generate_tulip_animation.py --aspect portrait --out tulip_portrait.mp4
 ```
 
-### 3. Quick Keyframe Previews
-
-To render preview keyframes (PNGs at 0s, 3s, 6s, 9s, 13s, 18s):
+### 4. Quick Keyframe Previews & Automated Verification
 
 ```bash
-python generate_tulip_animation.py --preview
+# Export keyframe PNGs to ./previews/
+python generate_tulip_animation.py --aspect portrait --preview
+
+# Verify geometry connectivity, encode contract, and temporal stability
+python verify_metrics.py --videos
 ```
 
 ## Video Specifications
@@ -98,5 +104,5 @@ python generate_tulip_animation.py --preview
 - Frame rate: 30 FPS
 - Duration: 18.0 seconds
 - Total frames: 540 (All I-frames `-g 1 -bf 0`)
-- Codec: H.264 / yuv420p / CRF 18
-- Bitrate: Variable, all-intra, < 100 MB
+- Codec: H.264 / yuv420p / CRF 18 (`moov` before `mdat`)
+- File size: ~44.5 MB (Landscape) / ~45.2 MB (Portrait)
